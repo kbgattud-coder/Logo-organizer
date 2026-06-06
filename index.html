@@ -8,6 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -556,9 +557,9 @@ let cards = DEFAULT_CARDS.map(c => ({
   name: c.defaultName,
   fixed: true,
   file: null, svgText: null, previewUrl: null,
-  pngSizes:  [...PNG_SIZES],
-  webpSizes: [...WEBP_SIZES],
-  includeIco: true, includeSvg: true,
+  pngSizes:  [1024],
+  webpSizes: [1024],
+  includeIco: false, includeSvg: true, includePdf: true,
 }));
 
 let customCounter = 0;
@@ -690,6 +691,7 @@ function buildCard(card) {
     if (active) { if (!card.webpSizes.includes(size)) card.webpSizes.push(size); }
     else card.webpSizes = card.webpSizes.filter(s => s !== size);
   }));
+  panel.appendChild(buildChipRow('PDF', ['Include'], [card.includePdf], (_, active) => { card.includePdf = active; }));
   panel.appendChild(buildChipRow('ICO (favicon)', ['16, 32, 48px'], [card.includeIco], (_, active) => { card.includeIco = active; }));
 
   body.append(dropZone, panel);
@@ -751,6 +753,15 @@ function canvasToBlob(canvas, type, quality = 0.95) {
   return new Promise(r => canvas.toBlob(r, type, quality));
 }
 
+async function buildPdf(svgText) {
+  const { jsPDF } = window.jspdf;
+  const canvas = await svgToCanvas(svgText, 1024, 1024);
+  const imgData = canvas.toDataURL('image/png');
+  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1024, 1024] });
+  pdf.addImage(imgData, 'PNG', 0, 0, 1024, 1024);
+  return pdf.output('blob');
+}
+
 async function buildIco(svgText, sizes) {
   const pngBlobs   = await Promise.all(sizes.map(async s => canvasToBlob(await svgToCanvas(svgText, s, s), 'image/png')));
   const pngBuffers = await Promise.all(pngBlobs.map(b => b.arrayBuffer()));
@@ -796,6 +807,7 @@ async function exportZip() {
   filled.forEach(c => {
     if (c.includeSvg) totalSteps++;
     totalSteps += c.pngSizes.length + c.webpSizes.length;
+    if (c.includePdf) totalSteps++;
     if (c.includeIco) totalSteps++;
   });
   let done = 0;
@@ -834,6 +846,11 @@ async function exportZip() {
           wf.file(`${baseName}-${s}x${s}.webp`, blob);
           tick(`${folderName} → WebP ${s}×${s}`);
         }
+      }
+
+      if (card.includePdf) {
+        folder.folder('PDF').file(`${baseName}.pdf`, await buildPdf(card.svgText));
+        tick(`${folderName} → PDF`);
       }
 
       if (card.includeIco) {
@@ -895,9 +912,9 @@ document.getElementById('addCardBtn').addEventListener('click', () => {
     name: `Logo ${customCounter + 3}`,
     fixed: false,
     file: null, svgText: null, previewUrl: null,
-    pngSizes:  [...PNG_SIZES],
-    webpSizes: [...WEBP_SIZES],
-    includeIco: true, includeSvg: true,
+    pngSizes:  [1024],
+    webpSizes: [1024],
+    includeIco: false, includeSvg: true, includePdf: true,
   });
   render();
   setTimeout(() => document.getElementById('cardsGrid').lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
