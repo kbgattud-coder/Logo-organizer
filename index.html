@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Logo Exporter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #200F07;
+      --surface:      #2d1710;
+      --surface-2:    #3b2016;
+      --surface-3:    #4a2a1d;
+      --border:       #5a3222;
+      --border-hover: #7a4832;
+      --primary:      #E85102;
+      --primary-hover:#C10801;
+      --accent:       #C10801;
+      --cream:        #F6E7C6;
+      --text:         #F6E7C6;
+      --text-muted:   rgba(246,231,198,0.45);
+      --text-sub:     rgba(246,231,198,0.65);
+      --success:      #6fcf97;
+      --danger:       #eb5757;
+      --radius:       14px;
+    }
+
+    body {
+      font-family: 'Work Sans', -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 48px 20px 100px;
+    }
+
+    /* ── Header ── */
+    header {
+      text-align: center;
+      margin-bottom: 44px;
+    }
+
+    .wordmark {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .wordmark-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+
+    .wordmark span {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    header h1 {
+      font-size: 2.1rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    header h1 em {
+      font-style: normal;
+      color: var(--primary);
+    }
+
+    header p {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      font-weight: 400;
+    }
+
+    /* ── Project name ── */
+    .project-name-wrap {
+      margin-bottom: 32px;
+    }
+
+    .field-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .project-name-input {
+      width: 100%;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 13px 18px;
+      color: var(--text);
+      font-family: 'Work Sans', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .project-name-input::placeholder { color: var(--text-muted); font-weight: 400; }
+    .project-name-input:focus { border-color: var(--primary); }
+
+    /* ── Cards ── */
+    .container { max-width: 880px; margin: 0 auto; }
+
+    .cards-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .logo-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .logo-card:hover { border-color: var(--border-hover); }
+    .logo-card.drag-active { border-color: var(--primary); }
+
+    /* Card header */
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      background: var(--surface-2);
+      border-bottom: 1.5px solid var(--border);
+      gap: 12px;
+    }
+
+    .card-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .card-color-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .dot-primary   { background: var(--primary); }
+    .dot-secondary { background: #6fcf97; }
+    .dot-logomark  { background: #f2c94c; }
+    .dot-custom    { background: #bb6bd9; }
+
+    /* Editable label */
+    .card-label-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1.5px solid transparent;
+      color: var(--text);
+      font-family: 'Work Sans', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      outline: none;
+      padding: 2px 4px;
+      border-radius: 4px 4px 0 0;
+      transition: border-color 0.15s, background 0.15s;
+      min-width: 80px;
+      max-width: 260px;
+      width: 100%;
+    }
+
+    .card-label-input:hover {
+      background: rgba(246,231,198,0.05);
+      border-bottom-color: var(--border-hover);
+    }
+
+    .card-label-input:focus {
+      background: rgba(232,81,2,0.08);
+      border-bottom-color: var(--primary);
+    }
+
+    .edit-hint {
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .remove-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 5px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      transition: color 0.15s, background 0.15s;
+      flex-shrink: 0;
+    }
+
+    .remove-btn:hover { color: var(--danger); background: rgba(235,87,87,0.1); }
+
+    /* Card body */
+    .card-body {
+      display: grid;
+      grid-template-columns: 1fr 290px;
+    }
+
+    /* Drop zone */
+    .drop-zone {
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      cursor: pointer;
+      border-right: 1.5px solid var(--border);
+      transition: background 0.15s;
+      min-height: 148px;
+      position: relative;
+    }
+
+    .drop-zone:hover, .drop-zone.drag-over { background: rgba(232,81,2,0.06); }
+
+    .drop-zone.has-file {
+      flex-direction: row;
+      justify-content: flex-start;
+      gap: 16px;
+    }
+
+    .drop-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .drop-icon { width: 38px; height: 38px; color: var(--text-muted); flex-shrink: 0; }
+
+    .drop-text { text-align: center; }
+    .drop-text strong { font-size: 0.88rem; font-weight: 600; display: block; margin-bottom: 3px; }
+    .drop-text span { font-size: 0.76rem; color: var(--text-muted); }
+
+    .svg-preview {
+      width: 68px;
+      height: 68px;
+      object-fit: contain;
+      border-radius: 8px;
+      background: var(--surface-3);
+      padding: 8px;
+      flex-shrink: 0;
+    }
+
+    .file-meta strong { font-size: 0.84rem; font-weight: 600; display: block; margin-bottom: 3px; }
+    .file-meta span { font-size: 0.76rem; color: var(--text-muted); }
+
+    .replace-hint {
+      font-size: 0.7rem;
+      color: var(--primary);
+      margin-top: 4px;
+      opacity: 0.7;
+    }
+
+    /* Format panel */
+    .format-panel {
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .format-panel-title {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+    }
+
+    .format-group { display: flex; flex-direction: column; gap: 5px; }
+
+    .format-group-label {
+      font-size: 0.73rem;
+      color: var(--text-sub);
+      font-weight: 500;
+    }
+
+    .size-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+
+    .chip {
+      font-size: 0.7rem;
+      font-family: 'Work Sans', sans-serif;
+      font-weight: 500;
+      padding: 3px 9px;
+      border-radius: 20px;
+      border: 1.5px solid var(--border);
+      background: var(--surface-2);
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .chip:hover { border-color: var(--primary); color: var(--text); }
+    .chip.active { border-color: var(--primary); background: rgba(232,81,2,0.14); color: var(--primary); }
+
+    /* Add card button */
+    .add-card-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 13px;
+      background: transparent;
+      border: 1.5px dashed var(--border);
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      font-family: 'Work Sans', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+      margin-bottom: 28px;
+    }
+
+    .add-card-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: rgba(232,81,2,0.04);
+    }
+
+    /* Export section */
+    .export-section {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    .export-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .export-header h2 { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+    .export-header p  { font-size: 0.82rem; color: var(--text-muted); }
+
+    .export-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 26px;
+      background: var(--primary);
+      color: var(--cream);
+      border: none;
+      border-radius: 8px;
+      font-family: 'Work Sans', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      white-space: nowrap;
+    }
+
+    .export-btn:hover { background: var(--primary-hover); }
+    .export-btn:active { transform: scale(0.97); }
+    .export-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+    /* Progress */
+    .progress-wrap { margin-top: 20px; display: none; }
+    .progress-wrap.visible { display: block; }
+
+    .progress-bar-track {
+      height: 5px;
+      background: var(--surface-2);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 99px;
+      width: 0%;
+      transition: width 0.25s;
+    }
+
+    .progress-label { font-size: 0.76rem; color: var(--text-muted); }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: var(--surface-2);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 11px 20px;
+      font-size: 0.84rem;
+      font-family: 'Work Sans', sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+      z-index: 999;
+      white-space: nowrap;
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: rgba(111,207,151,0.4); color: #6fcf97; }
+    .toast.error   { border-color: rgba(235,87,87,0.4);   color: #eb5757; }
+
+    /* Divider */
+    .section-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 28px 0 20px;
+    }
+
+    .section-divider span {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    .section-divider::before,
+    .section-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Responsive */
+    @media (max-width: 620px) {
+      .card-body { grid-template-columns: 1fr; }
+      .drop-zone { border-right: none; border-bottom: 1.5px solid var(--border); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="wordmark">
+      <div class="wordmark-dot"></div>
+      <span>Logo Exporter</span>
+      <div class="wordmark-dot"></div>
+    </div>
+    <h1>Your logo, <em>every format.</em></h1>
+    <p>Upload SVGs, pick your formats, download a complete organized asset pack.</p>
+  </header>
+
+  <!-- Project Name -->
+  <div class="project-name-wrap">
+    <label class="field-label" for="projectNameInput">Project Name</label>
+    <input
+      id="projectNameInput"
+      class="project-name-input"
+      type="text"
+      placeholder="e.g. Acme Inc. — used as the ZIP filename"
+      autocomplete="off"
+    />
+  </div>
+
+  <div class="section-divider"><span>Logo Sections</span></div>
+
+  <div class="cards-grid" id="cardsGrid"></div>
+
+  <button class="add-card-btn" id="addCardBtn">
+    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+      <path d="M12 5v14M5 12h14"/>
+    </svg>
+    Add another logo section
+  </button>
+
+  <!-- Export -->
+  <div class="export-section">
+    <div class="export-header">
+      <div>
+        <h2>Export Package</h2>
+        <p>SVG · PNG (multi-size) · WebP · ICO — organized into folders, zipped and ready.</p>
+      </div>
+      <button class="export-btn" id="exportBtn">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download ZIP
+      </button>
+    </div>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill" id="progressFill"></div>
+      </div>
+      <div class="progress-label" id="progressLabel">Preparing…</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Config ───────────────────────────────────────────────────────────────────
+
+const DEFAULT_CARDS = [
+  { id: 'primary',   defaultName: 'Primary Logo',   dot: 'dot-primary' },
+  { id: 'secondary', defaultName: 'Secondary Logo',  dot: 'dot-secondary' },
+  { id: 'logomark',  defaultName: 'Logo Mark',        dot: 'dot-logomark' },
+];
+
+const PNG_SIZES  = [16, 32, 64, 128, 256, 512, 1024];
+const WEBP_SIZES = [256, 512, 1024];
+const ICO_SIZES  = [16, 32, 48];
+
+// ─── State ────────────────────────────────────────────────────────────────────
+
+let cards = DEFAULT_CARDS.map(c => ({
+  ...c,
+  name: c.defaultName,
+  fixed: true,
+  file: null, svgText: null, previewUrl: null,
+  pngSizes:  [...PNG_SIZES],
+  webpSizes: [...WEBP_SIZES],
+  includeIco: true, includeSvg: true,
+}));
+
+let customCounter = 0;
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+
+function render() {
+  const grid = document.getElementById('cardsGrid');
+  grid.innerHTML = '';
+  cards.forEach(card => grid.appendChild(buildCard(card)));
+}
+
+function buildCard(card) {
+  const el = document.createElement('div');
+  el.className = 'logo-card';
+  el.dataset.id = card.id;
+
+  // ── Header ──
+  const header = document.createElement('div');
+  header.className = 'card-header';
+
+  const left = document.createElement('div');
+  left.className = 'card-header-left';
+
+  const dot = document.createElement('div');
+  dot.className = `card-color-dot ${card.dot}`;
+
+  const nameInput = document.createElement('input');
+  nameInput.className = 'card-label-input';
+  nameInput.type = 'text';
+  nameInput.value = card.name;
+  nameInput.placeholder = 'Section name';
+  nameInput.title = 'Click to rename this section';
+  nameInput.addEventListener('input', e => {
+    card.name = e.target.value || card.defaultName;
+  });
+
+  const editHint = document.createElement('span');
+  editHint.className = 'edit-hint';
+  editHint.innerHTML = `<svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> rename`;
+
+  left.append(dot, nameInput, editHint);
+  header.appendChild(left);
+
+  if (!card.fixed) {
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'remove-btn';
+    removeBtn.title = 'Remove section';
+    removeBtn.innerHTML = `<svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+    removeBtn.addEventListener('click', () => {
+      cards = cards.filter(c => c.id !== card.id);
+      render();
+    });
+    header.appendChild(removeBtn);
+  }
+
+  // ── Body ──
+  const body = document.createElement('div');
+  body.className = 'card-body';
+
+  // Drop zone
+  const dropZone = document.createElement('div');
+  dropZone.className = 'drop-zone' + (card.file ? ' has-file' : '');
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.svg,image/svg+xml';
+
+  if (card.file) {
+    const img = document.createElement('img');
+    img.className = 'svg-preview';
+    img.src = card.previewUrl;
+    img.alt = card.name;
+
+    const meta = document.createElement('div');
+    meta.className = 'file-meta';
+    meta.innerHTML = `<strong>${card.file.name}</strong><span>${(card.file.size/1024).toFixed(1)} KB · SVG</span>`;
+    const hint = document.createElement('div');
+    hint.className = 'replace-hint';
+    hint.textContent = 'Click to replace';
+    meta.appendChild(hint);
+
+    dropZone.append(fileInput, img, meta);
+  } else {
+    dropZone.innerHTML = `
+      <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+        <rect x="3" y="3" width="18" height="18" rx="2.5"/>
+        <path d="M3 9h18"/>
+        <circle cx="7.5" cy="6" r="1" fill="currentColor" stroke="none"/>
+        <circle cx="10.5" cy="6" r="1" fill="currentColor" stroke="none"/>
+        <path d="M8 14l3-3 2 2 2-2 2 2" stroke-linejoin="round" stroke-linecap="round"/>
+      </svg>
+      <div class="drop-text">
+        <strong>Drop SVG here</strong>
+        <span>or click to browse</span>
+      </div>`;
+    dropZone.insertBefore(fileInput, dropZone.firstChild);
+  }
+
+  fileInput.addEventListener('change', e => {
+    const f = e.target.files[0];
+    if (f) handleFile(card, f);
+  });
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); el.classList.add('drag-active'); });
+  dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); el.classList.remove('drag-active'); });
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    el.classList.remove('drag-active');
+    const f = e.dataTransfer.files[0];
+    if (f && (f.type === 'image/svg+xml' || f.name.endsWith('.svg'))) handleFile(card, f);
+    else showToast('Please drop an SVG file.', 'error');
+  });
+
+  // Format panel
+  const panel = document.createElement('div');
+  panel.className = 'format-panel';
+  panel.innerHTML = `<div class="format-panel-title">Export Formats</div>`;
+
+  panel.appendChild(buildChipRow('SVG', ['Include'], [card.includeSvg], (_, active) => { card.includeSvg = active; }));
+  panel.appendChild(buildChipRow('PNG sizes', PNG_SIZES.map(s=>`${s}px`), PNG_SIZES.map(s=>card.pngSizes.includes(s)), (val, active) => {
+    const size = parseInt(val);
+    if (active) { if (!card.pngSizes.includes(size)) card.pngSizes.push(size); }
+    else card.pngSizes = card.pngSizes.filter(s => s !== size);
+  }));
+  panel.appendChild(buildChipRow('WebP sizes', WEBP_SIZES.map(s=>`${s}px`), WEBP_SIZES.map(s=>card.webpSizes.includes(s)), (val, active) => {
+    const size = parseInt(val);
+    if (active) { if (!card.webpSizes.includes(size)) card.webpSizes.push(size); }
+    else card.webpSizes = card.webpSizes.filter(s => s !== size);
+  }));
+  panel.appendChild(buildChipRow('ICO (favicon)', ['16, 32, 48px'], [card.includeIco], (_, active) => { card.includeIco = active; }));
+
+  body.append(dropZone, panel);
+  el.append(header, body);
+  return el;
+}
+
+function buildChipRow(label, values, activeStates, onChange) {
+  const group = document.createElement('div');
+  group.className = 'format-group';
+  const lbl = document.createElement('div');
+  lbl.className = 'format-group-label';
+  lbl.textContent = label;
+  const chips = document.createElement('div');
+  chips.className = 'size-chips';
+  values.forEach((val, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'chip' + (activeStates[i] ? ' active' : '');
+    chip.textContent = val;
+    chip.addEventListener('click', () => {
+      chip.classList.toggle('active');
+      onChange(val, chip.classList.contains('active'));
+    });
+    chips.appendChild(chip);
+  });
+  group.append(lbl, chips);
+  return group;
+}
+
+// ─── File Handling ────────────────────────────────────────────────────────────
+
+async function handleFile(card, file) {
+  card.file = file;
+  card.svgText = await file.text();
+  card.previewUrl = URL.createObjectURL(file);
+  render();
+}
+
+// ─── SVG → raster ─────────────────────────────────────────────────────────────
+
+function svgToCanvas(svgText, w, h) {
+  return new Promise((resolve, reject) => {
+    const blob = new Blob([svgText], { type: 'image/svg+xml' });
+    const url  = URL.createObjectURL(blob);
+    const img  = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      resolve(canvas);
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function canvasToBlob(canvas, type, quality = 0.95) {
+  return new Promise(r => canvas.toBlob(r, type, quality));
+}
+
+async function buildIco(svgText, sizes) {
+  const pngBlobs   = await Promise.all(sizes.map(async s => canvasToBlob(await svgToCanvas(svgText, s, s), 'image/png')));
+  const pngBuffers = await Promise.all(pngBlobs.map(b => b.arrayBuffer()));
+
+  const HEADER = 6, DIR = 16;
+  const dirOffset = HEADER + DIR * sizes.length;
+  let totalBytes = 0;
+  const offsets = pngBuffers.map(buf => { const o = dirOffset + totalBytes; totalBytes += buf.byteLength; return o; });
+
+  const ico  = new ArrayBuffer(dirOffset + totalBytes);
+  const view = new DataView(ico);
+  view.setUint16(0, 0, true); view.setUint16(2, 1, true); view.setUint16(4, sizes.length, true);
+
+  sizes.forEach((s, i) => {
+    const b = HEADER + i * DIR;
+    view.setUint8(b, s >= 256 ? 0 : s); view.setUint8(b+1, s >= 256 ? 0 : s);
+    view.setUint8(b+2, 0); view.setUint8(b+3, 0);
+    view.setUint16(b+4, 1, true); view.setUint16(b+6, 32, true);
+    view.setUint32(b+8, pngBuffers[i].byteLength, true);
+    view.setUint32(b+12, offsets[i], true);
+  });
+
+  const bytes = new Uint8Array(ico);
+  let pos = dirOffset;
+  pngBuffers.forEach(buf => { bytes.set(new Uint8Array(buf), pos); pos += buf.byteLength; });
+  return new Blob([ico], { type: 'image/x-icon' });
+}
+
+// ─── Export ───────────────────────────────────────────────────────────────────
+
+async function exportZip() {
+  const filled = cards.filter(c => c.file && c.svgText);
+  if (!filled.length) { showToast('Upload at least one SVG logo first.', 'error'); return; }
+
+  const btn           = document.getElementById('exportBtn');
+  const progressWrap  = document.getElementById('progressWrap');
+  const progressFill  = document.getElementById('progressFill');
+  const progressLabel = document.getElementById('progressLabel');
+  btn.disabled = true;
+  progressWrap.classList.add('visible');
+
+  let totalSteps = 0;
+  filled.forEach(c => {
+    if (c.includeSvg) totalSteps++;
+    totalSteps += c.pngSizes.length + c.webpSizes.length;
+    if (c.includeIco) totalSteps++;
+  });
+  let done = 0;
+  const tick = label => {
+    done++;
+    progressFill.style.width = Math.round(done/totalSteps*100) + '%';
+    progressLabel.textContent = label;
+  };
+
+  try {
+    const zip = new JSZip();
+
+    for (const card of filled) {
+      const folderName = (card.name || card.defaultName).replace(/[/\\?%*:|"<>]/g, '-');
+      const baseName   = folderName.toLowerCase().replace(/\s+/g, '-');
+      const folder     = zip.folder(folderName);
+
+      if (card.includeSvg) {
+        folder.folder('SVG').file(`${baseName}.svg`, card.svgText);
+        tick(`${folderName} → SVG`);
+      }
+
+      if (card.pngSizes.length) {
+        const pf = folder.folder('PNG');
+        for (const s of [...card.pngSizes].sort((a,b)=>a-b)) {
+          const blob = await canvasToBlob(await svgToCanvas(card.svgText, s, s), 'image/png');
+          pf.file(`${baseName}-${s}x${s}.png`, blob);
+          tick(`${folderName} → PNG ${s}×${s}`);
+        }
+      }
+
+      if (card.webpSizes.length) {
+        const wf = folder.folder('WebP');
+        for (const s of [...card.webpSizes].sort((a,b)=>a-b)) {
+          const blob = await canvasToBlob(await svgToCanvas(card.svgText, s, s), 'image/webp', 0.95);
+          wf.file(`${baseName}-${s}x${s}.webp`, blob);
+          tick(`${folderName} → WebP ${s}×${s}`);
+        }
+      }
+
+      if (card.includeIco) {
+        folder.folder('ICO').file(`${baseName}.ico`, await buildIco(card.svgText, ICO_SIZES));
+        tick(`${folderName} → ICO`);
+      }
+    }
+
+    progressLabel.textContent = 'Compressing…';
+    const zipBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+
+    const projectName = document.getElementById('projectNameInput').value.trim();
+    const zipName = projectName
+      ? projectName.replace(/[/\\?%*:|"<>]/g, '-').replace(/\s+/g, '-').toLowerCase() + '-logos.zip'
+      : 'logo-package.zip';
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(zipBlob);
+    a.download = zipName;
+    a.click();
+    URL.revokeObjectURL(a.href);
+
+    progressFill.style.width = '100%';
+    progressLabel.textContent = 'Done!';
+    showToast('ZIP downloaded!', 'success');
+    setTimeout(() => { progressWrap.classList.remove('visible'); progressFill.style.width = '0%'; }, 2800);
+
+  } catch(err) {
+    console.error(err);
+    showToast('Export failed: ' + err.message, 'error');
+    progressWrap.classList.remove('visible');
+  }
+
+  btn.disabled = false;
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+
+function showToast(msg, type = 'default') {
+  const toast = document.getElementById('toast');
+  const icon = type === 'success'
+    ? `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>`
+    : type === 'error'
+    ? `<svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
+    : '';
+  toast.innerHTML = icon + msg;
+  toast.className = `toast ${type} show`;
+  setTimeout(() => toast.classList.remove('show'), 3200);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+
+document.getElementById('addCardBtn').addEventListener('click', () => {
+  customCounter++;
+  cards.push({
+    id: `custom-${customCounter}`,
+    defaultName: `Logo ${customCounter + 3}`,
+    dot: 'dot-custom',
+    name: `Logo ${customCounter + 3}`,
+    fixed: false,
+    file: null, svgText: null, previewUrl: null,
+    pngSizes:  [...PNG_SIZES],
+    webpSizes: [...WEBP_SIZES],
+    includeIco: true, includeSvg: true,
+  });
+  render();
+  setTimeout(() => document.getElementById('cardsGrid').lastElementChild?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50);
+});
+
+document.getElementById('exportBtn').addEventListener('click', exportZip);
+
+render();
+</script>
+</body>
+</html>
