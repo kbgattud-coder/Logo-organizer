@@ -9,6 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://unpkg.com/svg2pdf.js@2.2.3/dist/svg2pdf.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -786,13 +787,28 @@ function canvasToBlob(canvas, type, quality = 0.95) {
 async function buildPdf(svgText) {
   const { jsPDF } = window.jspdf;
   const { w: nw, h: nh } = getSvgNaturalSize(svgText);
-  const pdfW = 1024;
-  const pdfH = Math.round(pdfW * (nh / nw));
-  const canvas  = await svgToCanvas(svgText, pdfW);
-  const imgData = canvas.toDataURL('image/png');
-  const orient  = pdfW >= pdfH ? 'landscape' : 'portrait';
-  const pdf = new jsPDF({ orientation: orient, unit: 'px', format: [pdfW, pdfH] });
-  pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
+
+  // Scale up small viewBoxes to a minimum of 500pt so the PDF isn't tiny
+  const minWidth = 500;
+  const scale    = nw < minWidth ? minWidth / nw : 1;
+  const pdfW     = nw * scale;
+  const pdfH     = nh * scale;
+
+  // svg2pdf needs a live DOM element
+  const parser = new DOMParser();
+  const svgEl  = parser.parseFromString(svgText, 'image/svg+xml').querySelector('svg');
+  svgEl.style.cssText = 'position:absolute;left:-99999px;top:-99999px;visibility:hidden;';
+  document.body.appendChild(svgEl);
+
+  const pdf = new jsPDF({
+    orientation: pdfW >= pdfH ? 'landscape' : 'portrait',
+    unit: 'pt',
+    format: [pdfW, pdfH],
+  });
+
+  await pdf.svg(svgEl, { x: 0, y: 0, width: pdfW, height: pdfH });
+
+  document.body.removeChild(svgEl);
   return pdf.output('blob');
 }
 
