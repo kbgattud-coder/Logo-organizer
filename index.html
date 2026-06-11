@@ -738,15 +738,39 @@ async function handleFile(card, file) {
 
 // ─── SVG → raster ─────────────────────────────────────────────────────────────
 
-function svgToCanvas(svgText, w, h) {
+// Returns the natural {w, h} of an SVG by parsing viewBox or width/height attrs.
+function getSvgNaturalSize(svgText) {
+  const parser = new DOMParser();
+  const doc    = parser.parseFromString(svgText, 'image/svg+xml');
+  const svg    = doc.querySelector('svg');
+  if (!svg) return { w: 1024, h: 1024 };
+
+  const vb = svg.getAttribute('viewBox');
+  if (vb) {
+    const [,, vw, vh] = vb.trim().split(/[\s,]+/).map(Number);
+    if (vw && vh) return { w: vw, h: vh };
+  }
+  const w = parseFloat(svg.getAttribute('width'));
+  const h = parseFloat(svg.getAttribute('height'));
+  if (w && h) return { w, h };
+  return { w: 1024, h: 1024 };
+}
+
+// Renders SVG at targetWidth, scaling height to preserve aspect ratio.
+function svgToCanvas(svgText, targetWidth, forceSquare = false) {
   return new Promise((resolve, reject) => {
+    const { w: nw, h: nh } = getSvgNaturalSize(svgText);
+    const canvasW = targetWidth;
+    const canvasH = forceSquare ? targetWidth : Math.round(targetWidth * (nh / nw));
+
     const blob = new Blob([svgText], { type: 'image/svg+xml' });
     const url  = URL.createObjectURL(blob);
     const img  = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.width  = canvasW;
+      canvas.height = canvasH;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvasW, canvasH);
       URL.revokeObjectURL(url);
       resolve(canvas);
     };
@@ -761,15 +785,20 @@ function canvasToBlob(canvas, type, quality = 0.95) {
 
 async function buildPdf(svgText) {
   const { jsPDF } = window.jspdf;
-  const canvas = await svgToCanvas(svgText, 1024, 1024);
+  const { w: nw, h: nh } = getSvgNaturalSize(svgText);
+  const pdfW = 1024;
+  const pdfH = Math.round(pdfW * (nh / nw));
+  const canvas  = await svgToCanvas(svgText, pdfW);
   const imgData = canvas.toDataURL('image/png');
-  const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1024, 1024] });
-  pdf.addImage(imgData, 'PNG', 0, 0, 1024, 1024);
+  const orient  = pdfW >= pdfH ? 'landscape' : 'portrait';
+  const pdf = new jsPDF({ orientation: orient, unit: 'px', format: [pdfW, pdfH] });
+  pdf.addImage(imgData, 'PNG', 0, 0, pdfW, pdfH);
   return pdf.output('blob');
 }
 
 async function buildIco(svgText, sizes) {
-  const pngBlobs   = await Promise.all(sizes.map(async s => canvasToBlob(await svgToCanvas(svgText, s, s), 'image/png')));
+  // ICO frames must be square — pass forceSquare = true
+  const pngBlobs   = await Promise.all(sizes.map(async s => canvasToBlob(await svgToCanvas(svgText, s, true), 'image/png')));
   const pngBuffers = await Promise.all(pngBlobs.map(b => b.arrayBuffer()));
 
   const HEADER = 6, DIR = 16;
@@ -839,18 +868,20 @@ async function exportZip() {
       if (card.pngSizes.length) {
         const pf = folder.folder('PNG');
         for (const s of [...card.pngSizes].sort((a,b)=>a-b)) {
-          const blob = await canvasToBlob(await svgToCanvas(card.svgText, s, s), 'image/png');
-          pf.file(`${baseName}-${s}x${s}.png`, blob);
-          tick(`${folderName} → PNG ${s}×${s}`);
+          const canvas = await svgToCanvas(card.svgText, s);
+          const blob   = await canvasToBlob(canvas, 'image/png');
+          pf.file(`${baseName}-${s}w.png`, blob);
+          tick(`${folderName} → PNG ${s}px wide`);
         }
       }
 
       if (card.webpSizes.length) {
         const wf = folder.folder('WebP');
         for (const s of [...card.webpSizes].sort((a,b)=>a-b)) {
-          const blob = await canvasToBlob(await svgToCanvas(card.svgText, s, s), 'image/webp', 0.95);
-          wf.file(`${baseName}-${s}x${s}.webp`, blob);
-          tick(`${folderName} → WebP ${s}×${s}`);
+          const canvas = await svgToCanvas(card.svgText, s);
+          const blob   = await canvasToBlob(canvas, 'image/webp', 0.95);
+          wf.file(`${baseName}-${s}w.webp`, blob);
+          tick(`${folderName} → WebP ${s}px wide`);
         }
       }
 
